@@ -13,6 +13,15 @@ import (
 
 var json = jsoniter.ConfigCompatibleWithStandardLibrary
 
+type PrestoClient interface {
+	NewQuery(request string) error
+	GetData() []interface{}
+	GetFinishedQuery() (map[string]interface{}, error)
+	Columns() []string
+	WaitQueryExec() error
+	Close() error
+}
+
 type prestoClient struct {
 	prestoCatalog string
 	userAgent     string
@@ -57,7 +66,7 @@ type queryResult struct {
 	} `json:"stats"`
 }
 
-func New(curl, catalog string) *prestoClient {
+func New(curl, catalog string) prestoClient {
 	return &prestoClient{
 		prestoCatalog: catalog,
 		userAgent:     userAgent,
