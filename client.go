@@ -66,7 +66,7 @@ type queryResult struct {
 	} `json:"stats"`
 }
 
-func New(curl, catalog string) prestoClient {
+func New(curl, catalog string) PrestoClient {
 	return &prestoClient{
 		prestoCatalog: catalog,
 		userAgent:     userAgent,
