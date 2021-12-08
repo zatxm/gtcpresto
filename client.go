@@ -67,7 +67,7 @@ type queryResult struct {
 }
 
 func New(curl, catalog string) PrestoClient {
-	return &prestoClient{
+	p := &prestoClient{
 		prestoCatalog: catalog,
 		userAgent:     userAgent,
 		prestoUser:    prestoUser,
@@ -75,6 +75,7 @@ func New(curl, catalog string) PrestoClient {
 		state:         stateInit,
 		url:           curl,
 		closed:        false}
+	return p
 }
 
 func (p *prestoClient) NewQuery(request string) error {
