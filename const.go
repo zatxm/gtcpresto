@@ -8,7 +8,7 @@ const (
 	sourceHeader  = "X-Presto-Source"
 	catalogHeader = "X-Presto-Catalog"
 	schemaHeader  = "X-Presto-Schema"
-	userAgent     = "tu-gc-presto/" + version
+	userAgent     = "tu-gc-presto/1.0"
 	prestoSchema  = "default"
 	prestoUser    = "zatxm"
 	stateInit     = "NONE"

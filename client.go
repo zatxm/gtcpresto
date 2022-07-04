@@ -1,17 +1,26 @@
 package gtcpresto
 
 import (
+	"bytes"
 	"errors"
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/json-iterator/go"
 )
 
-var json = jsoniter.ConfigCompatibleWithStandardLibrary
+var (
+	json = jsoniter.ConfigCompatibleWithStandardLibrary
+	pool = sync.Pool{
+		New: func() interface{} {
+			return bytes.NewBuffer(make([]byte, 10240))
+		},
+	}
+)
 
 type PrestoClient interface {
 	NewQuery(request string) error
@@ -193,8 +202,8 @@ func (p *prestoClient) getVarFromResult() {
 
 	if len(p.columns) == 0 {
 		p.columns = make([]string, len(dat.Columns))
-		for i, col := range dat.Columns {
-			p.columns[i] = col.Name
+		for i := range dat.Columns {
+			p.columns[i] = dat.Columns[i].Name
 		}
 	}
 }
@@ -230,7 +239,7 @@ func (p *prestoClient) makeRequest(req *http.Request) (*http.Response, error) {
 	req.Header.Add("X-Presto-Catalog", p.prestoCatalog)
 	req.Header.Add("X-Presto-Schema", p.prestoSchema)
 
-	//presto可能会返回503，这种情况重试
+	// presto可能会返回503，这种情况重试
 	retry := initialRetry
 	for {
 		res, err := http.DefaultClient.Do(req)
@@ -254,7 +263,7 @@ func (p *prestoClient) makeRequest(req *http.Request) (*http.Response, error) {
 }
 
 func (p *prestoClient) readResultAll(resp *http.Response) (map[string]interface{}, error) {
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := readAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -269,7 +278,7 @@ func (p *prestoClient) readResultAll(resp *http.Response) (map[string]interface{
 }
 
 func (p *prestoClient) readResult(resp *http.Response) (*queryResult, error) {
-	body, err := ioutil.ReadAll(resp.Body)
+	body, err := readAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
@@ -281,4 +290,25 @@ func (p *prestoClient) readResult(resp *http.Response) (*queryResult, error) {
 	}
 
 	return &result, nil
+}
+
+func readAll(r io.Reader) ([]byte, error) {
+	buffer := pool.Get().(*bytes.Buffer)
+	buffer.Reset()
+	_, err := io.Copy(buffer, r)
+	if err != nil {
+		pool.Put(buffer)
+		return []byte{}, err
+	}
+	pool.Put(buffer)
+	temp := buffer.Bytes()
+	length := len(temp)
+	var body []byte
+	if cap(temp) > (length + length/10) {
+		body = make([]byte, length)
+		copy(body, temp)
+	} else {
+		body = temp
+	}
+	return body, nil
 }
